@@ -23,9 +23,13 @@ import tempfile
 # =========================
 import dagshub
 import mlflow
+import streamlit as st
+import os
+
+os.environ["DAGSHUB_USER_TOKEN"] = st.secrets["DAGSHUB_USER_TOKEN"] 
 
 dagshub.init(
-    repo_owner="<username_dagshub_kamu>",
+    repo_owner="numpangdesign4",
     repo_name="idx-portfolio-optimizer",
     mlflow=True
 )
