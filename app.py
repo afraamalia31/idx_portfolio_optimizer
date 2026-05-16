@@ -21,6 +21,15 @@ import tempfile
 # =========================
 # CONFIG MLFLOW
 # =========================
+import dagshub
+import mlflow
+
+dagshub.init(
+    repo_owner="<username_dagshub_kamu>",
+    repo_name="idx-portfolio-optimizer",
+    mlflow=True
+)
+
 mlflow.set_experiment("IDX Portfolio Optimizer")
 
 # =========================
