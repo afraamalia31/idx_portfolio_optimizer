@@ -11,8 +11,6 @@ import plotly.express as px
 from datetime import datetime, timedelta
 import warnings
 warnings.filterwarnings('ignore')
-import mlflow
-import os
 import json
 import io
 import zipfile
@@ -21,18 +19,27 @@ import tempfile
 # =========================
 # CONFIG MLFLOW
 # =========================
+from dotenv import load_dotenv
+import os
+#setting dagshub
 import dagshub
 import mlflow
-import streamlit as st
-import os
 
-os.environ["DAGSHUB_USER_TOKEN"] = st.secrets["DAGSHUB_USER_TOKEN"] 
+# load env
+load_dotenv()
 
+# (opsional) cek
+print(os.getenv("MLFLOW_TRACKING_USERNAME"))
+
+#  init dagshub (auto pakai env)
 dagshub.init(
+    repo_name="idx_portfolio_optimizer",
     repo_owner="numpangdesign4",
-    repo_name="idx-portfolio-optimizer",
     mlflow=True
 )
+
+# cek tracking uri
+print("TRACKING URI :", mlflow.get_tracking_uri())
 
 mlflow.set_experiment("IDX Portfolio Optimizer")
 
