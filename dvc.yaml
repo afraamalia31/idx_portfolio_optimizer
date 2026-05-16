@@ -1,0 +1,10 @@
+stages:
+  preparation:
+    cmd: python src/prepare.py
+    deps:
+    - data/raw/Iris.csv
+    - src/prepare.py
+    outs:
+    - data/prepared/test.csv
+    - data/prepared/train.csv
+    - plots/data_distribution.png

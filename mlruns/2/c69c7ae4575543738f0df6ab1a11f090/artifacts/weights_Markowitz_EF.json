@@ -1,0 +1,48 @@
+{
+  "model": "Markowitz_EF",
+  "weights": {
+    "BNGA.JK": 0.4,
+    "ADRO.JK": 0.4,
+    "ANTM.JK": 0.05,
+    "MDKA.JK": 0.05,
+    "PGAS.JK": 0.1
+  },
+  "metrik": {
+    "train": {
+      "ann_return": 0.27667,
+      "ann_vol": 0.223807,
+      "sharpe_ratio": 0.97928,
+      "max_drawdown": -0.168601,
+      "var_95": -0.023049,
+      "cvar_95": -0.029512,
+      "sortino_ratio": 1.565989,
+      "calmar_ratio": 1.64097,
+      "win_rate": 0.543651,
+      "total_return": 0.550782
+    },
+    "val": {
+      "ann_return": 0.721582,
+      "ann_vol": 0.191983,
+      "sharpe_ratio": 3.459075,
+      "max_drawdown": -0.081663,
+      "var_95": -0.018698,
+      "cvar_95": -0.020676,
+      "sortino_ratio": 6.118224,
+      "calmar_ratio": 8.836117,
+      "win_rate": 0.579439,
+      "total_return": 0.249763
+    },
+    "test": {
+      "ann_return": 0.343044,
+      "ann_vol": 0.308146,
+      "sharpe_ratio": 0.926651,
+      "max_drawdown": -0.104095,
+      "var_95": -0.021837,
+      "cvar_95": -0.044192,
+      "sortino_ratio": 1.034883,
+      "calmar_ratio": 3.295482,
+      "win_rate": 0.583333,
+      "total_return": 0.111911
+    }
+  }
+}
