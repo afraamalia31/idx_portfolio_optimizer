@@ -15,31 +15,26 @@ import json
 import io
 import zipfile
 import tempfile
+import mlflow 
 
 # =========================
 # CONFIG MLFLOW
 # =========================
-from dotenv import load_dotenv
 import os
-#setting dagshub
 import dagshub
 import mlflow
+from dotenv import load_dotenv
 
-# load env
 load_dotenv()
 
-# (opsional) cek
-print(os.getenv("MLFLOW_TRACKING_USERNAME"))
+# Set token dari .env
+os.environ["DAGSHUB_USER_TOKEN"] = os.getenv("DAGSHUB_USER_TOKEN", "")
 
-#  init dagshub (auto pakai env)
 dagshub.init(
     repo_name="idx_portfolio_optimizer",
     repo_owner="numpangdesign4",
     mlflow=True
 )
-
-# cek tracking uri
-print("TRACKING URI :", mlflow.get_tracking_uri())
 
 mlflow.set_experiment("IDX Portfolio Optimizer")
 
