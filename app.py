@@ -30,7 +30,7 @@ os.environ["DAGSHUB_USER_TOKEN"] = dagshub_token
 
 dagshub.init(
     repo_name="idx_portfolio_optimizer",
-    repo_owner="afraamalia31",
+    repo_owner="numpangdesign4",
     mlflow=True
 )
 
