@@ -30,6 +30,10 @@ load_dotenv()
 # Set token dari .env
 os.environ["DAGSHUB_USER_TOKEN"] = os.getenv("DAGSHUB_USER_TOKEN", "")
 
+# Baca token dari Streamlit Secrets (cloud) atau .env (lokal)
+dagshub_token = st.secrets.get("DAGSHUB_USER_TOKEN", os.getenv("DAGSHUB_USER_TOKEN", ""))
+os.environ["DAGSHUB_USER_TOKEN"] = dagshub_token
+
 dagshub.init(
     repo_name="idx_portfolio_optimizer",
     repo_owner="numpangdesign4",
