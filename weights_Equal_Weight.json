@@ -21,14 +21,14 @@
       "total_return": 0.149741
     },
     "val": {
-      "ann_return": 0.458607,
+      "ann_return": 0.458608,
       "ann_vol": 0.214926,
       "sharpe_ratio": 1.866256,
       "max_drawdown": -0.114939,
       "var_95": -0.019839,
       "cvar_95": -0.025093,
       "sortino_ratio": 3.055539,
-      "calmar_ratio": 3.989991,
+      "calmar_ratio": 3.989992,
       "win_rate": 0.570093,
       "total_return": 0.162524
     },
@@ -39,7 +39,7 @@
       "max_drawdown": -0.123453,
       "var_95": -0.019745,
       "cvar_95": -0.037016,
-      "sortino_ratio": 0.189843,
+      "sortino_ratio": 0.189842,
       "calmar_ratio": 0.766401,
       "win_rate": 0.574074,
       "total_return": 0.027203

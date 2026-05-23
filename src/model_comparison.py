@@ -27,6 +27,14 @@ import yfinance as yf
 
 warnings.filterwarnings("ignore")
 
+import dagshub
+
+# Ganti dengan username dan repo DagsHub kamu
+dagshub.init(
+    repo_owner = "numpangdesign4",        # ← username DagsHub kamu
+    repo_name  = "idx_portfolio_optimizer", # ← nama repo kamu
+    mlflow     = True
+)
 
 # ===========================================================================
 # KONFIGURASI EKSPERIMEN
@@ -392,7 +400,7 @@ def jalankan_eksperimen():
     }
 
     # ── 4. Setup MLflow ───────────────────────────────────────────
-    mlflow.set_experiment("IDX_Portfolio_Model_Comparison")
+    mlflow.set_experiment("idx_portfolio_optimizer")
 
     semua_hasil = {}
 
