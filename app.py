@@ -604,7 +604,7 @@ if run_optimizer or "portfolio_data" in st.session_state:
                         method  = metode_optimasi,
                     )
 
-                    model_name = "IDX_Portfolio_Optimizer"
+                    model_name = "Markowitz E.F"
                     mlflow.pyfunc.log_model(
                         artifact_path        = "portfolio_model",
                         python_model         = portfolio_model,
