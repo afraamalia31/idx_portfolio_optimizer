@@ -15,16 +15,22 @@ import json
 import io
 import zipfile
 import tempfile
+import mlflow 
+
+# =========================
+# CONFIG MLFLOW
+# =========================
 import os
 import dagshub
 import mlflow
 from dotenv import load_dotenv
 
-# =========================
-# CONFIG MLFLOW + DAGSHUB
-# =========================
-# Lokal: baca dari .env | Cloud: baca dari Streamlit Secrets
 load_dotenv()
+
+# Set token dari .env
+os.environ["DAGSHUB_USER_TOKEN"] = os.getenv("DAGSHUB_USER_TOKEN", "")
+
+# Baca token dari Streamlit Secrets (cloud) atau .env (lokal)
 dagshub_token = st.secrets.get("DAGSHUB_USER_TOKEN", os.getenv("DAGSHUB_USER_TOKEN", ""))
 os.environ["DAGSHUB_USER_TOKEN"] = dagshub_token
 
@@ -570,6 +576,45 @@ if run_optimizer or "portfolio_data" in st.session_state:
                         weights_path = os.path.join(tmp_dir, "optimal_weights.csv")
                         weights_df_mlf.to_csv(weights_path, index=False)
                         mlflow.log_artifact(weights_path, artifact_path="weights")
+
+                    # ── REGISTER MODEL ───────────────────────
+                    class PortfolioModel(mlflow.pyfunc.PythonModel):
+                        """
+                        Custom MLflow model yang menyimpan bobot optimal portofolio.
+                        Input  : DataFrame dengan kolom 'Stock'
+                        Output : DataFrame dengan kolom 'Stock' dan 'Weight'
+                        """
+                        def __init__(self, weights: dict, stats: dict, method: str):
+                            self.weights = weights
+                            self.stats   = stats
+                            self.method  = method
+
+                        def predict(self, context, model_input):
+                            import pandas as pd
+                            stocks = model_input["Stock"].tolist() if "Stock" in model_input.columns else list(self.weights.keys())
+                            result = {
+                                "Stock":  stocks,
+                                "Weight": [self.weights.get(s, 0.0) for s in stocks],
+                            }
+                            return pd.DataFrame(result)
+
+                    portfolio_model = PortfolioModel(
+                        weights = optimal_weights,
+                        stats   = optimal_stats,
+                        method  = metode_optimasi,
+                    )
+
+                    model_name = "IDX_Portfolio_Optimizer"
+                    mlflow.pyfunc.log_model(
+                        artifact_path        = "portfolio_model",
+                        python_model         = portfolio_model,
+                        registered_model_name= model_name,
+                        pip_requirements     = [
+                            "pandas",
+                            "numpy",
+                            "pyportfolioopt",
+                        ],
+                    )
 
                 st.session_state.optimizer       = optimizer
                 st.session_state.mc_results      = mc_results
