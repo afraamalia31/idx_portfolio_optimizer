@@ -59,6 +59,7 @@ from src.utils import (
     calculate_portfolio_stats,
     SAHAM_IDX_POPULER
 )
+from src.lstm_predictor import train_lstm_and_predict
 from src.eda import tampilkan_eda
 
 # ─── Konfigurasi Halaman ───────────────────────────────────────────────────────
@@ -405,6 +406,23 @@ with st.sidebar:
         value=5000
     )
     
+    # LSTM Toggle
+    st.markdown("---")
+    st.markdown("**🧠 Prediksi LSTM**")
+    use_lstm = st.toggle(
+        "Aktifkan prediksi LSTM",
+        value=False,
+        help="Train model LSTM per saham untuk menghasilkan sinyal BUY/HOLD/SELL"
+    )
+    if use_lstm:
+        lstm_epochs    = st.slider("Epochs training", 10, 100, 30, 10)
+        lstm_lookback  = st.slider("Lookback (hari)", 10, 60, 30, 5)
+        lstm_forecast  = st.slider("Forecast (hari ke depan)", 1, 10, 5, 1)
+    else:
+        lstm_epochs   = 30
+        lstm_lookback = 30
+        lstm_forecast = 5
+
     # Tombol Optimasi
     st.markdown("")
     run_optimizer = st.button("🚀 JALANKAN OPTIMASI", use_container_width=True)
@@ -577,44 +595,54 @@ if run_optimizer or "portfolio_data" in st.session_state:
                         weights_df_mlf.to_csv(weights_path, index=False)
                         mlflow.log_artifact(weights_path, artifact_path="weights")
 
-                    # ── REGISTER MODEL ───────────────────────
-                    class PortfolioModel(mlflow.pyfunc.PythonModel):
-                        """
-                        Custom MLflow model yang menyimpan bobot optimal portofolio.
-                        Input  : DataFrame dengan kolom 'Stock'
-                        Output : DataFrame dengan kolom 'Stock' dan 'Weight'
-                        """
-                        def __init__(self, weights: dict, stats: dict, method: str):
-                            self.weights = weights
-                            self.stats   = stats
-                            self.method  = method
-
-                        def predict(self, context, model_input):
-                            import pandas as pd
-                            stocks = model_input["Stock"].tolist() if "Stock" in model_input.columns else list(self.weights.keys())
-                            result = {
-                                "Stock":  stocks,
-                                "Weight": [self.weights.get(s, 0.0) for s in stocks],
-                            }
-                            return pd.DataFrame(result)
-
-                    portfolio_model = PortfolioModel(
-                        weights = optimal_weights,
-                        stats   = optimal_stats,
-                        method  = metode_optimasi,
-                    )
-
-                    model_name = "Markowitz E.F"
-                    mlflow.pyfunc.log_model(
-                        artifact_path        = "portfolio_model",
-                        python_model         = portfolio_model,
-                        registered_model_name= model_name,
-                        pip_requirements     = [
-                            "pandas",
-                            "numpy",
-                            "pyportfolioopt",
-                        ],
-                    )
+                # ── LSTM TRAINING & SINYAL ──────────────────────
+                lstm_signals  = None
+                lstm_summary  = None
+                if use_lstm:
+                    with st.spinner("🧠 Training LSTM per saham..."):
+                        try:
+                            current_run_id = mlflow.active_run().info.run_id if mlflow.active_run() else None
+                            lstm_signals, lstm_summary = train_lstm_and_predict(
+                                price_data     = data_untuk_optimasi,
+                                lookback       = lstm_lookback,
+                                forecast_days  = lstm_forecast,
+                                epochs         = lstm_epochs,
+                                mlflow_run_id  = current_run_id,
+                            )
+                            # Filter saham: hanya BUY/HOLD yang masuk portofolio
+                            tradeable = lstm_signals[
+                                lstm_signals["signal"].isin(["BUY", "HOLD"])
+                            ]["stock"].tolist()
+                            if len(tradeable) >= 3:
+                                filtered_prices = data_untuk_optimasi[tradeable]
+                                optimizer_lstm  = PortfolioOptimizer(
+                                    price_data    = filtered_prices,
+                                    risk_free_rate= risk_free_rate,
+                                )
+                                optimal_weights, optimal_stats = optimizer_lstm.optimize(
+                                    method         = metode_map[metode_optimasi],
+                                    weight_bounds  = (min_weight, max_weight),
+                                    target_return  = target_return,
+                                    target_volatility = target_risk,
+                                )
+                                mc_results   = optimizer_lstm.monte_carlo_simulation(n_portfolios=n_portfolios)
+                                frontier_df  = optimizer_lstm.get_efficient_frontier_points(
+                                    n_points=100,
+                                    weight_bounds=(min_weight, max_weight),
+                                )
+                                optimizer    = optimizer_lstm
+                                # Log LSTM-filtered hasil ke MLflow
+                                if mlflow.active_run():
+                                    mlflow.log_metric("lstm_filtered_stocks",  len(tradeable))
+                                    mlflow.log_metric("lstm_opt_sharpe",       optimal_stats["sharpe_ratio"])
+                                    mlflow.log_metric("lstm_opt_return",       optimal_stats["expected_return"])
+                            else:
+                                st.warning(
+                                    f"⚠️ LSTM hanya menemukan {len(tradeable)} saham BUY/HOLD "
+                                    f"(minimum 3). Menggunakan semua saham."
+                                )
+                        except Exception as e_lstm:
+                            st.warning(f"⚠️ LSTM error: {e_lstm}. Lanjutkan tanpa LSTM.")
 
                 st.session_state.optimizer       = optimizer
                 st.session_state.mc_results      = mc_results
@@ -623,6 +651,9 @@ if run_optimizer or "portfolio_data" in st.session_state:
                 st.session_state.frontier_df     = frontier_df
                 st.session_state.price_data      = price_data
                 st.session_state.split           = split
+                st.session_state.lstm_signals    = lstm_signals
+                st.session_state.lstm_summary    = lstm_summary
+                st.session_state.use_lstm        = use_lstm
                 st.session_state.config         = {
                     "risk_free_rate": risk_free_rate,
                     "metode":         metode_optimasi,
@@ -642,14 +673,17 @@ if run_optimizer or "portfolio_data" in st.session_state:
                 st.stop()
     
     # Ambil dari session state
-    price_data     = st.session_state.price_data
-    split          = st.session_state.get("split", None)  # ✅ aman jika belum ada
-    config         = st.session_state.config
-    optimizer      = st.session_state.optimizer
-    mc_results     = st.session_state.mc_results
+    price_data      = st.session_state.price_data
+    split           = st.session_state.get("split", None)
+    config          = st.session_state.config
+    optimizer       = st.session_state.optimizer
+    mc_results      = st.session_state.mc_results
     optimal_weights = st.session_state.optimal_weights
-    optimal_stats  = st.session_state.optimal_stats
-    frontier_df    = st.session_state.frontier_df
+    optimal_stats   = st.session_state.optimal_stats
+    frontier_df     = st.session_state.frontier_df
+    lstm_signals    = st.session_state.get("lstm_signals",  None)
+    lstm_summary    = st.session_state.get("lstm_summary",  None)
+    use_lstm        = st.session_state.get("use_lstm",      False)
     
     # ─── Metric Summary ───────────────────────────────────────────────────────
     st.markdown('<div class="section-header">RINGKASAN PORTOFOLIO OPTIMAL</div>', unsafe_allow_html=True)
@@ -681,14 +715,15 @@ if run_optimizer or "portfolio_data" in st.session_state:
             """, unsafe_allow_html=True)
     
     # ─── Tabs Utama ───────────────────────────────────────────────────────────
-    tab1, tab2, tab3, tab4, tab5, tab6, tab7 = st.tabs([
+    tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8 = st.tabs([
         "🎯 Efficient Frontier",
         "🥧 Alokasi Portofolio",
         "📊 Analisis Risiko",
         "📈 Kinerja Historis",
-        "✂️ Split Data",   # tab5
-        "🔍 EDA",           # tab6
-        "📋 Data & Statistik"  # tab7
+        "✂️ Split Data",
+        "🔍 EDA",
+        "📋 Data & Statistik",
+        "🧠 Prediksi LSTM",
     ])
     
     with tab1:
@@ -1140,6 +1175,107 @@ if run_optimizer or "portfolio_data" in st.session_state:
                 ⚠️ Tidak dapat mengakses MLflow: <code>{e_mlf}</code>
             </div>
             """, unsafe_allow_html=True)
+
+    # ─── Tab 8: Prediksi LSTM ──────────────────────────────────────────────────
+    with tab8:
+        st.markdown("#### 🧠 Prediksi Harga & Sinyal Trading (LSTM)")
+
+        if not use_lstm or lstm_signals is None:
+            st.info(
+                "💡 Aktifkan **Prediksi LSTM** di sidebar lalu klik "
+                "**JALANKAN OPTIMASI** untuk melihat sinyal trading."
+            )
+        else:
+            # ── Ringkasan LSTM ─────────────────────────────────────────────────
+            c1, c2, c3, c4, c5 = st.columns(5)
+            metrics_lstm = [
+                ("Avg MAE",        f"{lstm_summary['avg_mae']:.4f}",  ""),
+                ("Avg RMSE",       f"{lstm_summary['avg_rmse']:.4f}", ""),
+                ("Dir. Accuracy",  f"{lstm_summary['avg_acc']*100:.1f}%", ""),
+                ("Sinyal BUY 🟢",  lstm_summary["buy_count"],         ""),
+                ("Sinyal SELL 🔴", lstm_summary["sell_count"],        ""),
+            ]
+            for col, (lbl, val, _) in zip([c1, c2, c3, c4, c5], metrics_lstm):
+                col.metric(lbl, val)
+
+            st.markdown("---")
+
+            # ── Tabel sinyal ───────────────────────────────────────────────────
+            st.markdown("##### 📋 Sinyal Per Saham")
+
+            def color_signal(val):
+                if val == "BUY":
+                    return "color: #22c55e; font-weight: 600"
+                elif val == "SELL":
+                    return "color: #ef4444; font-weight: 600"
+                return "color: #f59e0b; font-weight: 600"
+
+            styled = (
+                lstm_signals.style
+                .applymap(color_signal, subset=["signal"])
+                .format({
+                    "current_price":   "{:,.2f}",
+                    "predicted_price": "{:,.2f}",
+                    "pct_change":      "{:+.2f}%",
+                })
+            )
+            st.dataframe(styled, use_container_width=True, height=350)
+
+            # ── Bar chart perubahan prediksi ───────────────────────────────────
+            st.markdown("##### 📊 Prediksi Perubahan Harga (%)")
+            fig_sig = go.Figure()
+            colors_bar = [
+                "#22c55e" if s == "BUY" else "#ef4444" if s == "SELL" else "#f59e0b"
+                for s in lstm_signals["signal"]
+            ]
+            fig_sig.add_trace(go.Bar(
+                x=lstm_signals["stock"].str.replace(".JK", "", regex=False),
+                y=lstm_signals["pct_change"],
+                marker_color=colors_bar,
+                text=lstm_signals["signal"],
+                textposition="outside",
+            ))
+            fig_sig.add_hline(y=0, line_color="white", line_width=0.5, opacity=0.4)
+            fig_sig.update_layout(
+                template="plotly_dark",
+                paper_bgcolor="rgba(17,24,39,1)",
+                plot_bgcolor="rgba(17,24,39,1)",
+                height=380,
+                margin=dict(l=0, r=0, t=20, b=0),
+                yaxis_title="Prediksi Perubahan (%)",
+                showlegend=False,
+                font=dict(family="DM Sans", color="#64748b"),
+            )
+            st.plotly_chart(fig_sig, use_container_width=True)
+
+            # ── Penjelasan filter Markowitz ────────────────────────────────────
+            buy_hold = lstm_signals[lstm_signals["signal"].isin(["BUY", "HOLD"])]
+            sell_lst = lstm_signals[lstm_signals["signal"] == "SELL"]
+
+            st.markdown("---")
+            cola, colb = st.columns(2)
+            with cola:
+                st.success(
+                    f"✅ **{len(buy_hold)} saham masuk portofolio** (BUY/HOLD):\n"
+                    + ", ".join(buy_hold["stock"].str.replace(".JK","",regex=False).tolist())
+                )
+            with colb:
+                if len(sell_lst):
+                    st.error(
+                        f"🚫 **{len(sell_lst)} saham dikeluarkan** (SELL):\n"
+                        + ", ".join(sell_lst["stock"].str.replace(".JK","",regex=False).tolist())
+                    )
+                else:
+                    st.info("ℹ️ Tidak ada saham dengan sinyal SELL.")
+
+            # ── MLflow run info ────────────────────────────────────────────────
+            if lstm_summary.get("run_id"):
+                st.markdown("---")
+                st.caption(
+                    f"📡 LSTM MLflow Run ID: `{lstm_summary['run_id']}` — "
+                    f"lihat detail di **DagsHub → Experiments**"
+                )
+
 
 # ─── Footer ───────────────────────────────────────────────────────────────────
 st.markdown("""
