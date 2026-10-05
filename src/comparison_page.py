@@ -485,7 +485,7 @@ def tampilkan_halaman_perbandingan():
 
     with tab1:
         fig_cum = plot_performa_kumulatif(hasil, price_data)
-        st.plotly_chart(fig_cum, use_container_width=True)
+        st.plotly_chart(fig_cum, width="stretch")
         st.markdown("""
         <div style='background:rgba(0,212,170,0.06);border:1px solid rgba(0,212,170,0.2);
         border-radius:8px;padding:12px 16px;font-size:0.82rem;color:#6ee7d4;'>
@@ -497,7 +497,7 @@ def tampilkan_halaman_perbandingan():
 
     with tab2:
         fig_radar = plot_radar(hasil, split_pilihan)
-        st.plotly_chart(fig_radar, use_container_width=True)
+        st.plotly_chart(fig_radar, width="stretch")
         st.markdown("""
         <div style='background:rgba(59,130,246,0.08);border:1px solid rgba(59,130,246,0.25);
         border-radius:8px;padding:12px 16px;font-size:0.82rem;color:#93c5fd;'>
@@ -509,7 +509,7 @@ def tampilkan_halaman_perbandingan():
 
     with tab3:
         fig_metrik = plot_metrik_grouped(hasil, split_pilihan)
-        st.plotly_chart(fig_metrik, use_container_width=True)
+        st.plotly_chart(fig_metrik, width="stretch")
 
         # Tabel lengkap
         st.markdown("#### Tabel Metrik Lengkap")
@@ -543,11 +543,11 @@ def tampilkan_halaman_perbandingan():
             rows.append(row)
 
         df_tabel = pd.DataFrame(rows)
-        st.dataframe(df_tabel, hide_index=True, use_container_width=True)
+        st.dataframe(df_tabel, hide_index=True, width="stretch")
 
     with tab4:
         fig_bobot = plot_bobot_grouped(hasil)
-        st.plotly_chart(fig_bobot, use_container_width=True)
+        st.plotly_chart(fig_bobot, width="stretch")
 
         # Tabel bobot
         st.markdown("#### Tabel Bobot Detail")
@@ -558,7 +558,7 @@ def tampilkan_halaman_perbandingan():
                 row[nama] = f"{data['weights'].get(ticker, 0)*100:.2f}%"
             bobot_rows.append(row)
         df_bobot = pd.DataFrame(bobot_rows)
-        st.dataframe(df_bobot, hide_index=True, use_container_width=True)
+        st.dataframe(df_bobot, hide_index=True, width="stretch")
 
     # ── Kesimpulan Otomatis ───────────────────────────────────────
     st.markdown("---")

@@ -27,11 +27,16 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-# Set token dari .env
-os.environ["DAGSHUB_USER_TOKEN"] = os.getenv("DAGSHUB_USER_TOKEN", "")
+# Baca token dari Streamlit Secrets (cloud) atau .env (lokal).
+# CATATAN: st.secrets.get(...) tetap raise StreamlitSecretNotFoundError kalau
+# file secrets.toml sama sekali tidak ada di lokal (bukan cuma saat key-nya
+# hilang), karena .get() bawaan Mapping cuma nangkep KeyError, bukan error
+# custom itu. Makanya di sini dibungkus try/except.
+try:
+    dagshub_token = st.secrets["DAGSHUB_USER_TOKEN"]
+except Exception:
+    dagshub_token = os.getenv("DAGSHUB_USER_TOKEN", "")
 
-# Baca token dari Streamlit Secrets (cloud) atau .env (lokal)
-dagshub_token = st.secrets.get("DAGSHUB_USER_TOKEN", os.getenv("DAGSHUB_USER_TOKEN", ""))
 os.environ["DAGSHUB_USER_TOKEN"] = dagshub_token
 
 dagshub.init(
@@ -44,7 +49,7 @@ mlflow.set_experiment("IDX Portfolio Optimizer")
 
 # =========================
 # Import modules lokal
-from src.data_fetcher import fetch_stock_data, get_stock_info
+from src.data_fetcher import fetch_stock_data, get_stock_info, LAST_FETCH_ERRORS
 from src.portfolio_optimizer import PortfolioOptimizer
 from src.visualizer import (
     plot_efficient_frontier,
@@ -344,7 +349,7 @@ with st.sidebar:
     )
 
     # Tambah saham custom
-    custom_stock = st.text_input("Atau ketik kode saham (cth: TLKM.JK)", "")
+    custom_stock = st.text_input("Atau ketik kode saham (cth: TLKM.JK)", "", autocomplete="off")
     if custom_stock and custom_stock not in selected_stocks:
         if not custom_stock.endswith(".JK"):
             custom_stock = custom_stock.upper() + ".JK"
@@ -425,7 +430,7 @@ with st.sidebar:
 
     # Tombol Optimasi
     st.markdown("")
-    run_optimizer = st.button("🚀 JALANKAN OPTIMASI", use_container_width=True)
+    run_optimizer = st.button("🚀 JALANKAN OPTIMASI", width="stretch")
 
 
 # ─── Validasi Input ───────────────────────────────────────────────────────────
@@ -449,7 +454,7 @@ if len(selected_stocks) < 3:
             "Sektor": ["Perbankan", "Perbankan", "Telekomunikasi", "Otomotif",
                        "Konsumer", "Perbankan", "Konsumer", "Farmasi"]
         })
-        st.dataframe(saham_display, hide_index=True, use_container_width=True)
+        st.dataframe(saham_display, hide_index=True, width="stretch")
     with col2:
         st.markdown('<div class="section-header">CARA PENGGUNAAN</div>', unsafe_allow_html=True)
         st.markdown("""
@@ -484,6 +489,14 @@ if run_optimizer or "portfolio_data" in st.session_state:
                         <strong>{', '.join([s.replace('.JK','') for s in failed_stocks])}</strong>
                     </div>
                     """, unsafe_allow_html=True)
+
+                    with st.expander("🔧 Detail teknis (kenapa gagal?)"):
+                        for s in failed_stocks:
+                            st.markdown(f"**{s}**")
+                            st.code(
+                                LAST_FETCH_ERRORS.get(s, "Tidak ada detail tersimpan."),
+                                language="text",
+                            )
                 
                 if price_data is None or price_data.shape[1] < 3:
                     st.error("❌ Data tidak cukup. Pastikan minimal 3 saham valid terpilih.")
@@ -742,7 +755,7 @@ if run_optimizer or "portfolio_data" in st.session_state:
             optimal_stats=optimal_stats,
             risk_free_rate=config["risk_free_rate"]
         )
-        st.plotly_chart(fig_frontier, use_container_width=True)
+        st.plotly_chart(fig_frontier, width="stretch")
     
     with tab2:
         col_left, col_right = st.columns([1, 1])
@@ -750,7 +763,7 @@ if run_optimizer or "portfolio_data" in st.session_state:
         with col_left:
             st.markdown("#### Alokasi Bobot Optimal")
             fig_weights = plot_portfolio_weights(optimal_weights)
-            st.plotly_chart(fig_weights, use_container_width=True)
+            st.plotly_chart(fig_weights, width="stretch")
         
         with col_right:
             st.markdown("#### Detail Alokasi")
@@ -770,7 +783,7 @@ if run_optimizer or "portfolio_data" in st.session_state:
             st.dataframe(
                 weights_df.drop("Bar", axis=1),
                 hide_index=True,
-                use_container_width=True
+                width="stretch"
             )
             
             # Rekomendasi investasi
@@ -796,12 +809,12 @@ if run_optimizer or "portfolio_data" in st.session_state:
         with col1:
             st.markdown("#### Matriks Korelasi")
             fig_corr = plot_correlation_heatmap(price_data)
-            st.plotly_chart(fig_corr, use_container_width=True)
+            st.plotly_chart(fig_corr, width="stretch")
         
         with col2:
             st.markdown("#### Risk-Return per Saham")
             fig_scatter = plot_risk_return_scatter(price_data, optimal_weights)
-            st.plotly_chart(fig_scatter, use_container_width=True)
+            st.plotly_chart(fig_scatter, width="stretch")
         
         # Statistik per saham
         st.markdown("#### Statistik Individual Saham")
@@ -825,13 +838,13 @@ if run_optimizer or "portfolio_data" in st.session_state:
             })
         
         df_stats = pd.DataFrame(individual_stats)
-        st.dataframe(df_stats, hide_index=True, use_container_width=True)
+        st.dataframe(df_stats, hide_index=True, width="stretch")
     
     with tab4:
         st.markdown("#### Kinerja Historis Portofolio vs Benchmark")
         
         fig_returns = plot_cumulative_returns(price_data, optimal_weights)
-        st.plotly_chart(fig_returns, use_container_width=True)
+        st.plotly_chart(fig_returns, width="stretch")
         
         # Rolling stats
         st.markdown("#### Rolling Sharpe Ratio (252 Hari)")
@@ -867,7 +880,7 @@ if run_optimizer or "portfolio_data" in st.session_state:
             yaxis=dict(gridcolor='#1e2d3d', title="Sharpe Ratio"),
             font=dict(family='DM Sans', color='#64748b')
         )
-        st.plotly_chart(fig_rolling, use_container_width=True)
+        st.plotly_chart(fig_rolling, width="stretch")
 
     # ─── Tab Baru: Split Data ─────────────────────────────────────────────────
     with tab5:
@@ -928,7 +941,7 @@ if run_optimizer or "portfolio_data" in st.session_state:
                 })
 
             df_split_stats = pd.DataFrame(split_stats)
-            st.dataframe(df_split_stats, hide_index=True, use_container_width=True)
+            st.dataframe(df_split_stats, hide_index=True, width="stretch")
 
             st.markdown("""
             <div class="info-box">
@@ -970,13 +983,13 @@ if run_optimizer or "portfolio_data" in st.session_state:
                 font=dict(family='DM Sans', color='#64748b'),
                 legend=dict(bgcolor='rgba(0,0,0,0)')
             )
-            st.plotly_chart(fig_price, use_container_width=True)
+            st.plotly_chart(fig_price, width="stretch")
         
         with col2:
             st.markdown("#### Raw Data Harga")
             st.dataframe(
                 price_data.tail(30).round(2),
-                use_container_width=True,
+                width="stretch",
                 height=400
             )
         
@@ -1210,16 +1223,20 @@ if run_optimizer or "portfolio_data" in st.session_state:
                     return "color: #ef4444; font-weight: 600"
                 return "color: #f59e0b; font-weight: 600"
 
+            styled_signals = lstm_signals.style
+            _style_elementwise = (
+                styled_signals.map if hasattr(styled_signals, "map")
+                else styled_signals.applymap
+            )
             styled = (
-                lstm_signals.style
-                .applymap(color_signal, subset=["signal"])
+                _style_elementwise(color_signal, subset=["signal"])
                 .format({
                     "current_price":   "{:,.2f}",
                     "predicted_price": "{:,.2f}",
                     "pct_change":      "{:+.2f}%",
                 })
             )
-            st.dataframe(styled, use_container_width=True, height=350)
+            st.dataframe(styled, width="stretch", height=350)
 
             # ── Bar chart perubahan prediksi ───────────────────────────────────
             st.markdown("##### 📊 Prediksi Perubahan Harga (%)")
@@ -1246,7 +1263,7 @@ if run_optimizer or "portfolio_data" in st.session_state:
                 showlegend=False,
                 font=dict(family="DM Sans", color="#64748b"),
             )
-            st.plotly_chart(fig_sig, use_container_width=True)
+            st.plotly_chart(fig_sig, width="stretch")
 
             # ── Penjelasan filter Markowitz ────────────────────────────────────
             buy_hold = lstm_signals[lstm_signals["signal"].isin(["BUY", "HOLD"])]

@@ -711,7 +711,7 @@ def tampilkan_eda(price_data: pd.DataFrame,
         st.markdown("#### Kelengkapan & Kebersihan Data")
 
         fig_lengkap = plot_kelengkapan_data(price_data)
-        st.plotly_chart(fig_lengkap, use_container_width=True)
+        st.plotly_chart(fig_lengkap, width="stretch")
 
         kualitas = eda_kualitas_data(price_data)
         df_kualitas = pd.DataFrame(kualitas).T.reset_index()
@@ -719,7 +719,7 @@ def tampilkan_eda(price_data: pd.DataFrame,
         df_kualitas = df_kualitas.drop(columns=[
             c for c in df_kualitas.columns if c.startswith("_")
         ], errors="ignore")
-        st.dataframe(df_kualitas, hide_index=True, use_container_width=True)
+        st.dataframe(df_kualitas, hide_index=True, width="stretch")
 
         n_masalah = sum(1 for v in kualitas.values() if "⚠️" in v["Status"])
         if n_masalah == 0:
@@ -736,14 +736,14 @@ def tampilkan_eda(price_data: pd.DataFrame,
         col1, col2 = st.columns(2)
         with col1:
             fig_rr = plot_return_vs_risiko(df_stats, risk_free_rate)
-            st.plotly_chart(fig_rr, use_container_width=True)
+            st.plotly_chart(fig_rr, width="stretch")
         with col2:
             fig_rank = plot_ranking_return(df_stats)
-            st.plotly_chart(fig_rank, use_container_width=True)
+            st.plotly_chart(fig_rank, width="stretch")
 
         # Tabel statistik lengkap (sembunyikan kolom internal)
         kolom_tampil = [c for c in df_stats.columns if not c.startswith("_")]
-        st.dataframe(df_stats[kolom_tampil], hide_index=True, use_container_width=True)
+        st.dataframe(df_stats[kolom_tampil], hide_index=True, width="stretch")
 
         st.markdown("""
         <div style='background:rgba(0,212,170,0.06);border:1px solid rgba(0,212,170,0.2);
@@ -760,19 +760,19 @@ def tampilkan_eda(price_data: pd.DataFrame,
         st.markdown("#### Pergerakan Harga & Pola Waktu")
 
         fig_norm = plot_harga_normalized(price_data)
-        st.plotly_chart(fig_norm, use_container_width=True)
+        st.plotly_chart(fig_norm, width="stretch")
 
         fig_cum = plot_return_kumulatif(price_data)
-        st.plotly_chart(fig_cum, use_container_width=True)
+        st.plotly_chart(fig_cum, width="stretch")
 
         col1, col2 = st.columns(2)
         with col1:
             window = st.slider("Window Rolling Volatilitas (hari)", 10, 90, 30, 5)
             fig_roll = plot_rolling_volatilitas(price_data, window)
-            st.plotly_chart(fig_roll, use_container_width=True)
+            st.plotly_chart(fig_roll, width="stretch")
         with col2:
             fig_bln = plot_return_bulanan(price_data)
-            st.plotly_chart(fig_bln, use_container_width=True)
+            st.plotly_chart(fig_bln, width="stretch")
 
     # ── Tab 4: Anomali & Outlier ─────────────────────────────────────────────
     with tab4:
@@ -781,27 +781,27 @@ def tampilkan_eda(price_data: pd.DataFrame,
         threshold = st.slider("Batas Pergerakan Ekstrem (%)", 3, 15, 5, 1) / 100
 
         fig_dist = plot_distribusi_return(price_data)
-        st.plotly_chart(fig_dist, use_container_width=True)
+        st.plotly_chart(fig_dist, width="stretch")
 
         fig_box = plot_boxplot_return(price_data)
-        st.plotly_chart(fig_box, use_container_width=True)
+        st.plotly_chart(fig_box, width="stretch")
 
         fig_out = plot_outlier_timeline(price_data, threshold)
-        st.plotly_chart(fig_out, use_container_width=True)
+        st.plotly_chart(fig_out, width="stretch")
 
         st.markdown(f"#### Daftar Hari Ekstrem (pergerakan > {threshold*100:.0f}%)")
         df_ekstrem = eda_hari_ekstrem(price_data, threshold)
         if df_ekstrem.empty:
             st.info("Tidak ada hari ekstrem dengan threshold ini.")
         else:
-            st.dataframe(df_ekstrem.head(50), hide_index=True, use_container_width=True)
+            st.dataframe(df_ekstrem.head(50), hide_index=True, width="stretch")
 
     # ── Tab 5: Korelasi ──────────────────────────────────────────────────────
     with tab5:
         st.markdown("#### Analisis Korelasi Antar Saham")
 
         fig_corr = plot_heatmap_korelasi(price_data)
-        st.plotly_chart(fig_corr, use_container_width=True)
+        st.plotly_chart(fig_corr, width="stretch")
 
         st.markdown("#### Ringkasan Pasangan Korelasi")
         df_corr = eda_ringkasan_korelasi(price_data)
@@ -809,11 +809,11 @@ def tampilkan_eda(price_data: pd.DataFrame,
         col1, col2 = st.columns(2)
         with col1:
             st.markdown("**🔴 Korelasi Tertinggi** (kurang ideal untuk diversifikasi)")
-            st.dataframe(df_corr.head(10), hide_index=True, use_container_width=True)
+            st.dataframe(df_corr.head(10), hide_index=True, width="stretch")
         with col2:
             st.markdown("**🟢 Korelasi Terendah** (ideal untuk diversifikasi)")
             st.dataframe(df_corr.tail(10).iloc[::-1], hide_index=True,
-                         use_container_width=True)
+                         width="stretch")
 
         st.markdown("""
         <div style='background:rgba(0,212,170,0.06);border:1px solid rgba(0,212,170,0.2);

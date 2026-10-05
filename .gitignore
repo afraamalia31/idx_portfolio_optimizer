@@ -1,6 +1,34 @@
+# ─── Virtual environment ────────────────────────────────────────
+# WAJIB ADA — ini yang kemarin belum ada, dan ini yang paling kritis:
+# venv/ berisi tensorflow, numpy, pandas, cvxpy versi terkompilasi
+# (ratusan MB). Kalau ke-push, GitHub bakal menolak (limit 100MB per
+# file) dan Cloud tetap install sendiri dari requirements.txt, jadi
+# venv/ nggak pernah perlu ikut di-commit.
+venv/
+.venv/
+env/
+
+# ─── Python ──────────────────────────────────────────────────────
 __pycache__/
 *.pyc
+*.pyo
+.ipynb_checkpoints/
+
+# ─── Secrets & kredensial ────────────────────────────────────────
+# JANGAN pernah ke-commit — isinya token DagsHub asli.
+.env
+.streamlit/secrets.toml
+
+# ─── MLflow / tracking ───────────────────────────────────────────
 mlruns/
 mlflow.db
-.env
 *.db
+
+# ─── Cache & data lokal project ini ──────────────────────────────
+cache_saham/
+
+# ─── Editor / OS ──────────────────────────────────────────────────
+.vscode/
+.idea/
+Thumbs.db
+.DS_Store
